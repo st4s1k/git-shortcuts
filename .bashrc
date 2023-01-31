@@ -7,6 +7,8 @@ NC='\033[0m' # No Color
 
 # Other aliases
 alias beep="echo -ne '${CYAN}[press Ctrl+C to stop...]${NC}' && while true; do echo -ne '\007' && sleep 1.2; done"
+alias mci="mvn clean install"
+alias mcist="mci -Dmaven.test.skip=true"
 
 # Git aliases
 alias drso='grshb develop develop'
@@ -61,6 +63,8 @@ grsb() {
     unset target
     unset remote
 
+    check_user_input=true
+
     case $# in
     1)
         remote_branch=@{upstream}
@@ -69,23 +73,47 @@ grsb() {
         source=$2
         ;;
     3)
-        target=$2
-        source=$3
-        echo -e "${CMD_COLOR}git checkout ${BRANCH_COLOR}$target${NC}"
-        gco "$target"
-        validate_result $? "${CMD_COLOR}git checkout ${BRANCH_COLOR}$target${NC}"
-        echo -e $SEPARATOR
+        if [ $3 = "-y" ]; then
+            check_user_input=false
+            source=$2
+        else
+            target=$2
+            source=$3
+            echo -e "${CMD_COLOR}git checkout ${BRANCH_COLOR}$target${NC}"
+            gco "$target"
+            validate_result $? "${CMD_COLOR}git checkout ${BRANCH_COLOR}$target${NC}"
+            echo -e $SEPARATOR
+        fi
+        ;;
+    4)
+        if [ $4 = "-y" ]; then
+            check_user_input=false
+            target=$2
+            source=$3
+            echo -e "${CMD_COLOR}git checkout ${BRANCH_COLOR}$target${NC}"
+            gco "$target"
+            validate_result $? "${CMD_COLOR}git checkout ${BRANCH_COLOR}$target${NC}"
+            echo -e $SEPARATOR
+        else
+            echo -en "${ERROR_COLOR}"
+            echo -e $SEPARATOR
+            echo -e "error: bad number of arguments $#"
+            echo -en $SEPARATOR
+            echo -en "${NC}"
+            return 1
+        fi
         ;;
     *)
         echo -en "${ERROR_COLOR}"
         echo -e $SEPARATOR
-        echo -e "error: bad number of arguments"
+        echo -e "error: bad number of arguments $#"
         echo -en $SEPARATOR
         echo -en "${NC}"
         return 1
         ;;
     esac
-                                                                                        # | Variable Name  | Example 1      | Example 2 | Example 3 | Example 4     |
+
+    #                                                                                     | Variable Name  | Example 1      | Example 2 | Example 3 | Example 4     |
     upstream=$(git rev-parse --symbolic-full-name --abbrev-ref @{upstream} 2>/dev/null) # | upstream       | origin/develop | develop   | -         | origin/master |
     current_branch=$(git symbolic-ref -q --short HEAD)                                  # | current_branch | develop        | develop   | test      | master        |
     remote=$(echo ${upstream%"$current_branch"})                                        # | remote         | origin/        | -         | -         | origin/       |
@@ -111,7 +139,9 @@ grsb() {
     echo -e "${CMD_COLOR}to remote: ${BRANCH_COLOR}$remote_branch${NC}"
     echo -e $SEPARATOR
 
-    read -p "$(echo -e "${HEADER_COLOR}[press Enter to continue, or Ctrl+C to cancel]\n${NC}$SEPARATOR")"
+    if $check_user_input; then
+        read -p "$(echo -e "${HEADER_COLOR}[press Enter to continue, or Ctrl+C to cancel]\n${NC}$SEPARATOR")"
+    fi
 
     echo -e "${CMD_COLOR}git reset $1 ${BRANCH_COLOR}$remote_branch${NC}"
     grs $1 "$remote_branch"
