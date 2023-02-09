@@ -67,10 +67,24 @@ grsb() {
 
     case $# in
     1)
-        remote_branch=@{upstream}
+        if [ $1 = "-y" ]; then
+            echo -en "${ERROR_COLOR}"
+            echo -e $SEPARATOR
+            echo -e "error: bad number of arguments $#"
+            echo -en $SEPARATOR
+            echo -en "${NC}"
+            return 1
+        else
+            remote_branch=@{upstream}
+        fi
         ;;
     2)
-        source=$2
+        if [ $2 = "-y" ]; then
+            check_user_input=false
+            remote_branch=@{upstream}
+        else
+            source=$2
+        fi
         ;;
     3)
         if [ $3 = "-y" ]; then
@@ -151,7 +165,7 @@ grsb() {
 
 grshb() {
     echo -e $SEPARATOR
-    echo -e "${HEADER_COLOR}[Git Reset Hard Branch]${NC}\n(local) ${BRANCH_COLOR}$1${NC} -> (remote) ${BRANCH_COLOR}$remote_branch${NC}"
+    echo -e "${HEADER_COLOR}[Git Reset Hard Branch]${NC}"
     echo -e $SEPARATOR
 
     grsb --hard "$@"
