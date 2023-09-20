@@ -11,7 +11,6 @@ alias mci="mvn clean install"
 alias mcist="mci -Dmaven.test.skip=true"
 
 # Git aliases
-alias drso='grshb develop develop'
 alias ga='git add'
 alias gaa='ga -A'
 alias gb='git branch'
@@ -35,18 +34,25 @@ alias grm='git rm'
 alias grmc='grm --cached'
 alias grs='git reset'
 alias grsh='grs --hard'
-alias grshd='gfo && grsh origin/develop'
-alias grsm='gfo && grsh origin/master'
-alias grso='grshb'
+
+alias grsho='git_reset_hard_branch'
+alias grshd='grsho develop'
+alias grshm='grsho master'
+alias drsho='grsho develop develop'
+alias mrsho='grsho master master'
+
+alias grsso='git_reset_soft_branch'
+alias grssd='grsso develop'
+alias grssm='grsso master'
+alias drsso='grsso develop develop'
+alias mrsso='grsso master master'
+
 alias grss='grs --soft'
-alias grssd='gfo && grss origin/develop'
 alias grssh='grss HEAD^'
-alias grsso='grssb'
 alias gsl='gstash list'
 alias gspop='gstash pop'
 alias gst='git status'
 alias gstash='git stash'
-alias mrso='grshb master master'
 
 HEADER_COLOR=$PURPLE
 ERROR_COLOR=$RED
@@ -54,7 +60,7 @@ CMD_COLOR=$BROWN_ORANGE
 BRANCH_COLOR=$CYAN
 SEPARATOR="------------------------------------------------------------"
 
-grsb() {
+git_reset_branch() {
 
     unset upstream
     unset current_branch
@@ -163,13 +169,13 @@ grsb() {
     echo -e $SEPARATOR
 }
 
-grshb() {
+git_reset_hard_branch() {
     echo -e $SEPARATOR
     echo -e "${HEADER_COLOR}[Git Reset Hard Branch]${NC}"
     echo -e $SEPARATOR
 
-    grsb --hard "$@"
-    validate_result $? "${CMD_COLOR}grsb --hard ${BRANCH_COLOR}$@${NC}"
+    git_reset_branch --hard "$@"
+    validate_result $? "${CMD_COLOR}git_reset_branch --hard ${BRANCH_COLOR}$@${NC}"
 
     if [ $? -eq 0 ]; then
         echo -e "${HEADER_COLOR}[cleanup the untracked files]${NC}"
@@ -180,13 +186,13 @@ grshb() {
     fi
 }
 
-grssb() {
+git_reset_soft_branch() {
     echo -e $SEPARATOR
     echo -e "${HEADER_COLOR}[Git Reset Soft Branch]${NC}"
     echo -e $SEPARATOR
 
-    grsb --soft "$@"
-    validate_result $? "${CMD_COLOR}grsb --soft ${BRANCH_COLOR}$@${NC}"
+    git_reset_branch --soft "$@"
+    validate_result $? "${CMD_COLOR}git_reset_branch --soft ${BRANCH_COLOR}$@${NC}"
 }
 
 validate_result() {
