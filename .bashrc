@@ -1,9 +1,20 @@
 # Color aliases
-PURPLE='\033[0;35m'
-RED='\033[0;31m'
-BROWN_ORANGE='\033[0;33m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\e[0m' # No Color
+WHITE='\e[107m'
+RED='\e[31m'
+GREEN='\e[32m'
+BROWN_ORANGE='\e[33m'
+BLUE='\e[34m'
+PURPLE='\e[35m'
+CYAN='\e[36m'
+LIGHT_GRAY='\e[37m'
+DARK_GRAY='\e[90m'
+LIGHT_RED='\e[91m'
+LIGHT_GREEN='\e[92m'
+LIGHT_YELLOW='\e[93m'
+LIGHT_BLUE='\e[94m'
+LIGHT_MAGENTA='\e[95m'
+LIGHT_CYAN='\e[96m'
 
 # Other aliases
 alias beep="echo -ne '${CYAN}[press Ctrl+C to stop...]${NC}' && while true; do echo -ne '\007' && sleep 1.2; done"
