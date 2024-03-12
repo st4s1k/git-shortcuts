@@ -1,6 +1,6 @@
 # Color aliases
 NC='\e[0m' # No Color
-WHITE='\e[107m'
+WHITE='\e[97m'
 RED='\e[31m'
 GREEN='\e[32m'
 BROWN_ORANGE='\e[33m'
