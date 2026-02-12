@@ -44,7 +44,6 @@ alias gpull='git pull'
 alias grm='git rm'
 alias grmc='grm --cached'
 alias grs='git reset'
-alias grsh='grs --hard'
 
 alias grsho='git_reset_hard_branch'
 alias grshd='grsho $PROJECT_DEV_BRANCH'
