@@ -1,23 +1,27 @@
-# Color aliases
-NC='\e[0m' # No Color
-WHITE='\e[97m'
-RED='\e[31m'
-GREEN='\e[32m'
-BROWN_ORANGE='\e[33m'
-BLUE='\e[34m'
-PURPLE='\e[35m'
-CYAN='\e[36m'
-LIGHT_GRAY='\e[37m'
-DARK_GRAY='\e[90m'
-LIGHT_RED='\e[91m'
-LIGHT_GREEN='\e[92m'
-LIGHT_YELLOW='\e[93m'
-LIGHT_BLUE='\e[94m'
-LIGHT_MAGENTA='\e[95m'
-LIGHT_CYAN='\e[96m'
+# Colors ($'...' syntax works in bash, zsh, ksh — escapes resolved at assignment)
+NC=$'\e[0m'
+WHITE=$'\e[97m'
+RED=$'\e[31m'
+GREEN=$'\e[32m'
+BROWN_ORANGE=$'\e[33m'
+BLUE=$'\e[34m'
+PURPLE=$'\e[35m'
+CYAN=$'\e[36m'
+LIGHT_GRAY=$'\e[37m'
+DARK_GRAY=$'\e[90m'
+LIGHT_RED=$'\e[91m'
+LIGHT_GREEN=$'\e[92m'
+LIGHT_YELLOW=$'\e[93m'
+LIGHT_BLUE=$'\e[94m'
+LIGHT_MAGENTA=$'\e[95m'
+LIGHT_CYAN=$'\e[96m'
+
+# Project branch defaults (override in your project's shell profile or .env)
+: "${PROJECT_DEV_BRANCH:=develop}"
+: "${PROJECT_MAIN_BRANCH:=master}"
 
 # Other aliases
-alias beep="echo -ne '${CYAN}[press Ctrl+C to stop...]${NC}' && while true; do echo -ne '\007' && sleep 1.2; done"
+alias beep="printf '%s' '${CYAN}[press Ctrl+C to stop...]${NC}' && while true; do printf '\007' && sleep 1.2; done"
 alias mci="mvn clean install"
 alias mcist="mci -Dmaven.test.skip=true"
 
@@ -75,149 +79,131 @@ CMD_COLOR=$BROWN_ORANGE
 BRANCH_COLOR=$CYAN
 SEPARATOR="------------------------------------------------------------"
 
+# Helper: print a formatted error message
+_git_error() {
+    printf "%s\n" "${ERROR_COLOR}${SEPARATOR}"
+    printf "error: %s\n" "$1"
+    printf "%s\n" "${SEPARATOR}${NC}"
+}
+
+# Helper: check exit code and print error on failure
+# Usage: _git_validate $? "command description" || return 1
+_git_validate() {
+    if [[ $1 -ne 0 ]]; then
+        _git_error "failed to execute: $2"
+        return 1
+    fi
+}
+
+# Helper: verify we're inside a git repository
+_git_require_repo() {
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+        _git_error "not a git repository"
+        return 1
+    fi
+}
+
 git_reset_branch() {
+    _git_require_repo || return 1
 
-    unset upstream
-    unset current_branch
-    unset remote_branch
-    unset source
-    unset target
-    unset remote
+    local check_user_input=true
+    local source="" target="" remote_branch=""
+    local upstream current_branch remote
+    local reset_mode="" _a1="" _a2="" _a3=""
+    local _argc=0
 
-    check_user_input=true
-
-    case $# in
-    1)
-        if [ $1 = "-y" ]; then
-            echo -en "${ERROR_COLOR}"
-            echo -e $SEPARATOR
-            echo -e "error: bad number of arguments $#"
-            echo -en $SEPARATOR
-            echo -en "${NC}"
-            return 1
+    # Parse arguments: extract -y flag, collect the rest (no arrays — portable)
+    while [[ $# -gt 0 ]]; do
+        if [[ "$1" == "-y" ]]; then
+            check_user_input=false
         else
-            remote_branch=@{upstream}
+            _argc=$((_argc + 1))
+            case $_argc in
+                1) _a1="$1" ;;
+                2) _a2="$1" ;;
+                3) _a3="$1" ;;
+            esac
         fi
+        shift
+    done
+
+    reset_mode="$_a1"
+
+    case $_argc in
+    1)
+        # git_reset_branch --hard
+        remote_branch="@{upstream}"
         ;;
     2)
-        if [ $2 = "-y" ]; then
-            check_user_input=false
-            remote_branch=@{upstream}
-        else
-            source=$2
-        fi
+        # git_reset_branch --hard <source>
+        source="$_a2"
         ;;
     3)
-        if [ $3 = "-y" ]; then
-            check_user_input=false
-            source=$2
-        else
-            target=$2
-            source=$3
-            echo -e "${CMD_COLOR}git checkout ${BRANCH_COLOR}$target${NC}"
-            gco "$target"
-            validate_result $? "${CMD_COLOR}git checkout ${BRANCH_COLOR}$target${NC}"
-            echo -e $SEPARATOR
-        fi
-        ;;
-    4)
-        if [ $4 = "-y" ]; then
-            check_user_input=false
-            target=$2
-            source=$3
-            echo -e "${CMD_COLOR}git checkout ${BRANCH_COLOR}$target${NC}"
-            gco "$target"
-            validate_result $? "${CMD_COLOR}git checkout ${BRANCH_COLOR}$target${NC}"
-            echo -e $SEPARATOR
-        else
-            echo -en "${ERROR_COLOR}"
-            echo -e $SEPARATOR
-            echo -e "error: bad number of arguments $#"
-            echo -en $SEPARATOR
-            echo -en "${NC}"
-            return 1
-        fi
+        # git_reset_branch --hard <target> <source>
+        target="$_a2"
+        source="$_a3"
+        printf "%s\n" "${CMD_COLOR}git checkout ${BRANCH_COLOR}${target}${NC}"
+        git checkout "$target"
+        _git_validate $? "git checkout $target" || return 1
+        printf "%s\n" "$SEPARATOR"
         ;;
     *)
-        echo -en "${ERROR_COLOR}"
-        echo -e $SEPARATOR
-        echo -e "error: bad number of arguments $#"
-        echo -en $SEPARATOR
-        echo -en "${NC}"
+        _git_error "bad number of arguments: $_argc"
         return 1
         ;;
     esac
 
-    #                                                                                     | Variable Name  | Example 1      | Example 2 | Example 3 | Example 4     |
-    upstream=$(git rev-parse --symbolic-full-name --abbrev-ref @{upstream} 2>/dev/null) # | upstream       | origin/develop | develop   | -         | origin/master |
-    current_branch=$(git symbolic-ref -q --short HEAD)                                  # | current_branch | develop        | develop   | test      | master        |
-    remote=$(echo ${upstream%"$current_branch"})                                        # | remote         | origin/        | -         | -         | origin/       |
-    remote=$(echo ${remote%"/"})                                                        # | remote         | origin         | -         | -         | origin        |
-    remote_branch=${remote_branch:-$remote/$source}                                     # | remote_branch  | origin/$source | /$source  | /$source  | @{upstream}   |
-    remote_branch=$(echo ${remote_branch#"/"})                                          # | remote_branch  | origin/$source | $source   | $source   | @{upstream}   |
+    upstream=$(git rev-parse --symbolic-full-name --abbrev-ref "@{upstream}" 2>/dev/null)
+    current_branch=$(git symbolic-ref -q --short HEAD)
+    remote="${upstream%"$current_branch"}"
+    remote="${remote%/}"
+    remote_branch="${remote_branch:-${remote}/${source}}"
+    remote_branch="${remote_branch#/}"
 
     if [[ -z "$remote" ]]; then
-        echo -en "${ERROR_COLOR}"
-        echo -e $SEPARATOR
-        echo -e "error: missing remote"
-        echo -e $SEPARATOR
-        echo -en "${NC}"
+        _git_error "missing remote (no upstream set for current branch)"
         return 1
     fi
 
-    echo -e "${CMD_COLOR}git fetch ${BRANCH_COLOR}$remote${NC}"
-    gf
-    validate_result $? "${CMD_COLOR}git fetch ${BRANCH_COLOR}$remote${NC}"
-    echo -e $SEPARATOR
+    printf "%s\n" "${CMD_COLOR}git fetch ${BRANCH_COLOR}${remote}${NC}"
+    git fetch "$remote"
+    _git_validate $? "git fetch $remote" || return 1
+    printf "%s\n" "$SEPARATOR"
 
-    echo -e "${CMD_COLOR}will reset local: ${BRANCH_COLOR}$current_branch${NC}"
-    echo -e "${CMD_COLOR}to remote: ${BRANCH_COLOR}$remote_branch${NC}"
-    echo -e $SEPARATOR
+    printf "%s\n" "${CMD_COLOR}will reset local: ${BRANCH_COLOR}${current_branch}${NC}"
+    printf "%s\n" "${CMD_COLOR}to remote: ${BRANCH_COLOR}${remote_branch}${NC}"
+    printf "%s\n" "$SEPARATOR"
 
     if $check_user_input; then
-        read -p "$(echo -e "${HEADER_COLOR}[press Enter to continue, or Ctrl+C to cancel]\n${NC}$SEPARATOR")"
+        printf "%s\n" "${HEADER_COLOR}[press Enter to continue, or Ctrl+C to cancel]${NC}"
+        printf "%s\n" "$SEPARATOR"
+        read _discard
     fi
 
-    echo -e "${CMD_COLOR}git reset $1 ${BRANCH_COLOR}$remote_branch${NC}"
-    grs $1 "$remote_branch"
-    validate_result $? "${CMD_COLOR}git reset $1 ${BRANCH_COLOR}$remote_branch${NC}"
-    echo -e $SEPARATOR
+    printf "%s\n" "${CMD_COLOR}git reset ${reset_mode} ${BRANCH_COLOR}${remote_branch}${NC}"
+    git reset "$reset_mode" "$remote_branch"
+    _git_validate $? "git reset $reset_mode $remote_branch" || return 1
+    printf "%s\n" "$SEPARATOR"
 }
 
 git_reset_hard_branch() {
-    echo -e $SEPARATOR
-    echo -e "${HEADER_COLOR}[Git Reset Hard Branch]${NC}"
-    echo -e $SEPARATOR
+    printf "%s\n" "$SEPARATOR"
+    printf "%s\n" "${HEADER_COLOR}[Git Reset Hard Branch]${NC}"
+    printf "%s\n" "$SEPARATOR"
 
-    git_reset_branch --hard "$@"
-    validate_result $? "${CMD_COLOR}git_reset_branch --hard ${BRANCH_COLOR}$@${NC}"
+    git_reset_branch --hard "$@" || return 1
 
-    if [ $? -eq 0 ]; then
-        echo -e "${HEADER_COLOR}[cleanup the untracked files]${NC}"
-        echo -e "${CMD_COLOR}git clean -df${NC}"
-        git clean -df
-        validate_result $? "${CMD_COLOR}git clean -df${NC}"
-        echo -en $SEPARATOR
-    fi
+    printf "%s\n" "${HEADER_COLOR}[cleanup the untracked files]${NC}"
+    printf "%s\n" "${CMD_COLOR}git clean -df${NC}"
+    git clean -df
+    _git_validate $? "git clean -df" || return 1
+    printf "%s\n" "$SEPARATOR"
 }
 
 git_reset_soft_branch() {
-    echo -e $SEPARATOR
-    echo -e "${HEADER_COLOR}[Git Reset Soft Branch]${NC}"
-    echo -e $SEPARATOR
+    printf "%s\n" "$SEPARATOR"
+    printf "%s\n" "${HEADER_COLOR}[Git Reset Soft Branch]${NC}"
+    printf "%s\n" "$SEPARATOR"
 
-    git_reset_branch --soft "$@"
-    validate_result $? "${CMD_COLOR}git_reset_branch --soft ${BRANCH_COLOR}$@${NC}"
-}
-
-validate_result() {
-    if [ $1 -ne 0 ]; then
-        echo -en "${ERROR_COLOR}"
-        echo -e $SEPARATOR
-        echo -e "error: failed to execute: $2"
-        echo -en "${ERROR_COLOR}"
-        echo -en $SEPARATOR
-        echo -en "${NC}"
-        kill -INT $$
-    fi
+    git_reset_branch --soft "$@" || return 1
 }
